@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Personalized Health Tracker</title>
+    <!-- Tailwind CSS CDN for easy styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js CDN for charting -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+    <style>
+        /* Custom styles for better aesthetics and responsiveness */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* Light blue-gray background */
+            display: flex;
+            justify-content: center;
+            align-items: flex-start; /* Align to top for better scrolling on small screens */
+            min-height: 100vh;
+            padding: 20px;
+            box-sizing: border-box; /* Include padding in element's total width and height */
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 16px; /* More rounded corners */
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1); /* Softer shadow */
+            max-width: 800px; /* Increased max-width for charts */
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .input-group label {
+            font-weight: 600;
+            color: #334155; /* Darker text for labels */
+            margin-bottom: 8px;
+            display: block;
+        }
+        .input-group input[type="number"],
+        .input-group input[type="text"], /* Added text input for food name */
+        .input-group input[type="date"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #cbd5e1; /* Light border */
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.2s ease-in-out;
+            box-sizing: border-box; /* Ensure padding doesn't increase total width */
+        }
+        .input-group input[type="number"]:focus,
+        .input-group input[type="text"]:focus, /* Added text input focus */
+        .input-group input[type="date"]:focus {
+            outline: none;
+            border-color: #3b82f6; /* Blue border on focus */
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); /* Light blue shadow on focus */
+        }
+        .btn {
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out, transform 0.1s ease-in-out;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .btn-primary {
+            background-color: #3b82f6; /* Blue */
+            color: #ffffff;
+        }
+        .btn-primary:hover {
+            background-color: #2563eb; /* Darker blue on hover */
+            transform: translateY(-1px);
+        }
+        .btn-secondary {
+            background-color: #e2e8f0; /* Light gray */
+            color: #334155;
+        }
+        .btn-secondary:hover {
+            background-color: #cbd5e1; /* Darker gray on hover */
+            transform: translateY(-1px);
+        }
+        .result-box {
+            background-color: #f8fafc; /* Very light gray */
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            color: #1e293b; /* Dark text */
+        }
+        .result-box strong {
+            color: #0d9488; /* Teal for emphasis */
+        }
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 10px;
+        }
+        .loading-spinner {
+            border: 4px solid #f3f3f3; /* Light grey */
+            border-top: 4px solid #3b82f6; /* Blue */
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: none; /* Hidden by default */
+        }
+        .loading-spinner.active {
+            display: block; /* Show when active */
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* History items styling */
+        .history-item {
+            background-color: #f8fafc;
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            border: 1px solid #e2e8f0;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .history-item-header {
+            font-weight: 600;
+            color: #1e293b;
+            font-size: 1.1rem;
+        }
+        .history-item-details {
+            font-size: 0.9rem;
+            color: #475569;
+        }
+        /* Food log list styling */
+        .food-log-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px dashed #e2e8f0;
+            font-size: 0.95rem;
+            color: #475569;
+        }
+        .food-log-item:last-child {
+            border-bottom: none;
+        }
+
+
+        /* Responsive adjustments */
+        @media (max-width: 640px) {
+            .container {
+                padding: 20px;
+                gap: 15px;
+            }
+            .btn {
+                width: 100%; /* Full width buttons on small screens */
+            }
+            .section-title {
+                font-size: 1.25rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-3xl font-bold text-center text-gray-800 section-title">My Health Tracker</h1>
+
+        <!-- Date Selection for Logging -->
+        <div class="section">
+            <h2 class="text-2xl font-semibold text-gray-700 mb-4">Log for Date:</h2>
+            <div class="input-group mb-4">
+                <label for="logDateInput">Select Date:</label>
+                <input type="date" id="logDateInput" class="focus:ring-blue-500 focus:border-blue-500">
+            </div>
+        </div>
+
+        <!-- Calorie Intake Section -->
+        <div class="section">
+            <h2 class="text-2xl font-semibold text-gray-700 mb-4">Calorie Intake</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div class="input-group">
+                    <label for="foodItemNameInput">Food Item Name:</label>
+                    <input type="text" id="foodItemNameInput" placeholder="e.g., Apple, Chicken Breast" class="focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div class="input-group">
+                    <label for="foodItemCaloriesInput">Calories:</label>
+                    <input type="number" id="foodItemCaloriesInput" placeholder="e.g., 95" class="focus:ring-blue-500 focus:border-blue-500">
+                </div>
+            </div>
+            <div class="flex flex-col md:flex-row gap-2 mb-4">
+                <button id="logFoodItemBtn" class="btn btn-primary flex-grow">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clip-rule="evenodd" />
+                    </svg>
+                    Add Food Item
+                </button>
+                <button id="clearFoodItemInputsBtn" class="btn btn-secondary flex-grow">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm6 0a1 1 0 11-2 0v6a1 1 0 112 0V8z" clip-rule="evenodd" />
+                    </svg>
+                    Clear Food Inputs
+                </button>
+            </div>
+            <div id="loggedFoodList" class="result-box mb-4">
+                <p class="text-gray-500">No food items logged for this date.</p>
+            </div>
+            <div id="totalCaloriesDisplay" class="result-box mt-4">
+                Total Calories for <span id="currentDateCalories">Today</span>: <strong>0</strong>
+            </div>
+        </div>
+
+        <!-- BMI Calculator Section -->
+        <div class="section">
+            <h2 class="text-2xl font-semibold text-gray-700 mb-4">BMI Calculator</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div class="input-group">
+                    <label for="weightInput">Weight (kg):</label>
+                    <input type="number" id="weightInput" placeholder="e.g., 70" class="focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div class="input-group">
+                    <label for="heightInput">Height (cm):</label>
+                    <input type="number" id="heightInput" placeholder="e.g., 175" class="focus:ring-blue-500 focus:border-blue-500">
+                </div>
+            </div>
+            <button id="calculateBmiBtn" class="btn btn-primary w-full md:w-auto">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+                    <path fill-rule="evenodd" d="M4 5a2 2 0 012-2h2V1a1 1 0 112 0v2h2a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 1h6v4H7V6zm-2 6a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clip-rule="evenodd" />
+                </svg>
+                Calculate BMI
+            </button>
+            <div id="bmiDisplay" class="result-box mt-4">
+                Your BMI for <span id="currentDateBMI">Today</span>: <strong>N/A</strong>
+            </div>
+        </div>
+
+        <!-- Water Intake Section -->
+        <div class="section">
+            <h2 class="text-2xl font-semibold text-gray-700 mb-4">Water Intake</h2>
+            <div class="flex flex-wrap justify-between gap-2 mb-4">
+                <button class="btn btn-secondary water-quick-add" data-amount="0.5">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V8z" clip-rule="evenodd" />
+                    </svg>
+                    +0.5 L
+                </button>
+                <button class="btn btn-secondary water-quick-add" data-amount="1.0">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V8z" clip-rule="evenodd" />
+                    </svg>
+                    +1.0 L
+                </button>
+                <button class="btn btn-secondary water-quick-add" data-amount="1.5">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V8z" clip-rule="evenodd" />
+                    </svg>
+                    +1.5 L
+                </button>
+                <button class="btn btn-secondary water-quick-add" data-amount="2.0">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V8z" clip-rule="evenodd" />
+                    </svg>
+                    +2.0 L
+                </button>
+            </div>
+            <div id="totalWaterDisplay" class="result-box mt-4">
+                Total Water for <span id="currentDateWater">Today</span>: <strong>0 L</strong>
+            </div>
+        </div>
+
+        <!-- Personalized Advice Section -->
+        <div class="section">
+            <h2 class="text-2xl font-semibold text-gray-700 mb-4">Personalized Advice</h2>
+            <button id="getAdviceBtn" class="btn btn-primary w-full md:w-auto">
+                <div id="adviceSpinner" class="loading-spinner"></div>
+                Get Advice
+            </button>
+            <div id="adviceDisplay" class="result-box mt-4">
+                Click "Get Advice" to receive personalized insights based on your logged data.
+            </div>
+        </div>
+
+        <!-- Daily History & Progress Section -->
+        <div class="section">
+            <h2 class="text-2xl font-semibold text-gray-700 mb-4">Daily History & Progress</h2>
+            <div id="historyList" class="mb-6 max-h-60 overflow-y-auto border border-gray-200 rounded-lg p-2">
+                <!-- History items will be rendered here -->
+                <p class="text-gray-500 text-center">No history yet. Log some data!</p>
+            </div>
+            <div class="chart-container relative h-80 w-full">
+                <canvas id="healthChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Clear Data Button -->
+        <div class="section mt-6 text-center">
+            <button id="clearDataBtn" class="btn btn-secondary">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm6 0a1 1 0 11-2 0v6a1 1 0 112 0V8z" clip-rule="evenodd" />
+                </svg>
+                Clear All Data
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // --- DOM Element References ---
+        const logDateInput = document.getElementById('logDateInput');
+        const foodItemNameInput = document.getElementById('foodItemNameInput'); // New input
+        const foodItemCaloriesInput = document.getElementById('foodItemCaloriesInput'); // New input
+        const logFoodItemBtn = document.getElementById('logFoodItemBtn'); // Renamed button
+        const clearFoodItemInputsBtn = document.getElementById('clearFoodItemInputsBtn'); // Renamed button
+        const loggedFoodList = document.getElementById('loggedFoodList'); // New display area
+        const totalCaloriesDisplay = document.getElementById('totalCaloriesDisplay');
+        const currentDateCaloriesSpan = document.getElementById('currentDateCalories');
+
+        const weightInput = document.getElementById('weightInput');
+        const heightInput = document.getElementById('heightInput');
+        const calculateBmiBtn = document.getElementById('calculateBmiBtn');
+        const bmiDisplay = document.getElementById('bmiDisplay');
+        const currentDateBMISpan = document.getElementById('currentDateBMI');
+
+        const totalWaterDisplay = document.getElementById('totalWaterDisplay');
+        const currentDateWaterSpan = document.getElementById('currentDateWater');
+        const waterQuickAddBtns = document.querySelectorAll('.water-quick-add');
+
+        const getAdviceBtn = document.getElementById('getAdviceBtn');
+        const adviceDisplay = document.getElementById('adviceDisplay');
+        const adviceSpinner = document.getElementById('adviceSpinner');
+
+        const historyList = document.getElementById('historyList');
+        const healthChartCanvas = document.getElementById('healthChart');
+
+        const clearDataBtn = document.getElementById('clearDataBtn');
+
+        // --- Data Storage (using localStorage for persistence) ---
+        // Array to store daily records
+        let dailyRecords = [];
+        // Current date being logged/viewed (YYYY-MM-DD)
+        let currentDate = new Date().toISOString().split('T')[0];
+        let chartInstance = null; // To hold the Chart.js instance
+
+        // --- Helper Functions ---
+
+        // Formats a date string (YYYY-MM-DD) to a more readable format
+        function formatDisplayDate(dateString) {
+            const date = new Date(dateString + 'T00:00:00'); // Add T00:00:00 to avoid timezone issues
+            return date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        }
+
+        // Gets or creates a daily record object for a specific date
+        function getRecordForDate(date) {
+            let record = dailyRecords.find(r => r.date === date);
+            if (!record) {
+                record = {
+                    date: date,
+                    calories: 0,
+                    water: 0,
+                    bmi: { value: 'N/A', category: 'N/A' },
+                    foodEntries: [] // Changed from mealCalories to foodEntries array
+                };
+                dailyRecords.push(record);
+                // Sort records by date in ascending order
+                dailyRecords.sort((a, b) => new Date(a.date) - new Date(b.date));
+            }
+            return record;
+        }
+
+        // --- Data Persistence ---
+
+        // Function to load data from localStorage
+        function loadData() {
+            const storedRecords = localStorage.getItem('dailyRecords');
+            if (storedRecords) {
+                dailyRecords = JSON.parse(storedRecords);
+            }
+            // Set date input to today's date initially
+            logDateInput.value = currentDate;
+            updateUIForCurrentDate();
+            renderHistory();
+            renderChart();
+        }
+
+        // Function to save data to localStorage
+        function saveData() {
+            localStorage.setItem('dailyRecords', JSON.stringify(dailyRecords));
+        }
+
+        // --- UI Update Functions ---
+
+        // Updates all displays based on the current date's record
+        function updateUIForCurrentDate() {
+            const record = getRecordForDate(currentDate);
+
+            // Update Calories section
+            totalCaloriesDisplay.innerHTML = `Total Calories for <span id="currentDateCalories"></span>: <strong>${record.calories}</strong>`;
+            currentDateCaloriesSpan.textContent = formatDisplayDate(currentDate);
+            renderFoodLog(record.foodEntries); // Render the list of logged food items
+
+            // BMI inputs are not persisted per day, they are for calculation
+            weightInput.value = '';
+            heightInput.value = '';
+
+            // Update BMI section
+            let bmiText = `Your BMI for <span id="currentDateBMI"></span>: <strong>${record.bmi.value}</strong>`;
+            if (record.bmi.category !== 'N/A') {
+                bmiText += ` (${record.bmi.category})`;
+            }
+            bmiDisplay.innerHTML = bmiText;
+            currentDateBMISpan.textContent = formatDisplayDate(currentDate);
+
+
+            // Update Water section
+            totalWaterDisplay.innerHTML = `Total Water for <span id="currentDateWater"></span>: <strong>${record.water.toFixed(2)} L</strong>`;
+            currentDateWaterSpan.textContent = formatDisplayDate(currentDate);
+        }
+
+        // --- BMI Category Helper ---
+        function getBmiCategory(bmi) {
+            if (bmi < 18.5) {
+                return 'Underweight';
+            } else if (bmi >= 18.5 && bmi <= 24.9) {
+                return 'Normal weight';
+            } else if (bmi >= 25 && bmi <= 29.9) {
+                return 'Overweight';
+            } else if (bmi >= 30) {
+                return 'Obese';
+            } else {
+                return 'N/A';
+            }
+        }
+
+        // --- Clear Input Fields ---
+        function clearFoodItemInputs() { // Renamed function
+            foodItemNameInput.value = '';
+            foodItemCaloriesInput.value = '';
+        }
+
+        // --- Render Food Log List for Current Day ---
+        function renderFoodLog(foodEntries) {
+            loggedFoodList.innerHTML = ''; // Clear previous entries
+            if (foodEntries.length === 0) {
+                loggedFoodList.innerHTML = '<p class="text-gray-500">No food items logged for this date.</p>';
+                return;
+            }
+
+            foodEntries.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'food-log-item';
+                div.innerHTML = `
+                    <span>${item.name}</span>
+                    <span>${item.calories} kcal</span>
+                `;
+                loggedFoodList.appendChild(div);
+            });
+        }
+
+        // --- Render History List ---
+        function renderHistory() {
+            historyList.innerHTML = ''; // Clear previous entries
+            if (dailyRecords.length === 0) {
+                historyList.innerHTML = '<p class="text-gray-500 text-center">No history yet. Log some data!</p>';
+                return;
+            }
+
+            // Sort in descending order for display (most recent first)
+            const sortedRecords = [...dailyRecords].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            sortedRecords.forEach(record => {
+                const item = document.createElement('div');
+                item.className = 'history-item';
+                item.innerHTML = `
+                    <div class="history-item-header">${formatDisplayDate(record.date)}</div>
+                    <div class="history-item-details">
+                        Calories: <strong>${record.calories} kcal</strong> |
+                        Water: <strong>${record.water.toFixed(2)} L</strong> |
+                        BMI: <strong>${record.bmi.value}</strong> (${record.bmi.category})
+                    </div>
+                `;
+                historyList.appendChild(item);
+            });
+        }
+
+        // --- Render Chart ---
+        function renderChart() {
+            if (chartInstance) {
+                chartInstance.destroy(); // Destroy existing chart instance
+            }
+
+            const dates = dailyRecords.map(record => record.date);
+            const caloriesData = dailyRecords.map(record => record.calories);
+            const waterData = dailyRecords.map(record => record.water);
+            const bmiData = dailyRecords.map(record => (record.bmi.value !== 'N/A' ? parseFloat(record.bmi.value) : null));
+
+            chartInstance = new Chart(healthChartCanvas, {
+                type: 'line', // Line chart for trends
+                data: {
+                    labels: dates,
+                    datasets: [
+                        {
+                            label: 'Calories (kcal)',
+                            data: caloriesData,
+                            borderColor: 'rgb(75, 192, 192)',
+                            tension: 0.1,
+                            fill: false,
+                            yAxisID: 'y-calories'
+                        },
+                        {
+                            label: 'Water (L)',
+                            data: waterData,
+                            borderColor: 'rgb(54, 162, 235)',
+                            tension: 0.1,
+                            fill: false,
+                            yAxisID: 'y-water'
+                        },
+                        {
+                            label: 'BMI',
+                            data: bmiData,
+                            borderColor: 'rgb(255, 99, 132)',
+                            tension: 0.1,
+                            fill: false,
+                            yAxisID: 'y-bmi'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false, // Allow canvas to resize freely
+                    scales: {
+                        'y-calories': {
+                            type: 'linear',
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: 'Calories (kcal)'
+                            },
+                            beginAtZero: true
+                        },
+                        'y-water': {
+                            type: 'linear',
+                            position: 'right', // Water on right axis
+                            title: {
+                                display: true,
+                                text: 'Water (L)'
+                            },
+                            beginAtZero: true,
+                            grid: {
+                                drawOnChartArea: false // Only draw grid lines for the left axis
+                            }
+                        },
+                        'y-bmi': {
+                            type: 'linear',
+                            position: 'right', // BMI on right axis
+                            title: {
+                                display: true,
+                                text: 'BMI'
+                            },
+                            beginAtZero: false, // BMI doesn't start at zero
+                            grid: {
+                                drawOnChartArea: false // Only draw grid lines for the left axis
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false
+                        },
+                        title: {
+                            display: true,
+                            text: 'Daily Health Trends'
+                        }
+                    }
+                }
+            });
+        }
+
+
+        // --- Event Listeners ---
+
+        // Date input change
+        logDateInput.addEventListener('change', (event) => {
+            currentDate = event.target.value;
+            updateUIForCurrentDate();
+        });
+
+        // Add Food Item (replacing Log Daily Calories)
+        logFoodItemBtn.addEventListener('click', () => {
+            const record = getRecordForDate(currentDate);
+            const foodName = foodItemNameInput.value.trim();
+            const calories = parseInt(foodItemCaloriesInput.value);
+
+            if (foodName && !isNaN(calories) && calories >= 0) { // Allow 0 calories for items like water
+                record.foodEntries.push({ name: foodName, calories: calories });
+                // Recalculate total calories for the day
+                record.calories = record.foodEntries.reduce((sum, item) => sum + item.calories, 0);
+
+                updateUIForCurrentDate();
+                saveData();
+                renderHistory();
+                renderChart();
+                clearFoodItemInputs(); // Clear inputs after logging
+            } else {
+                adviceDisplay.innerHTML = '<span style="color: red;">Please enter a valid food name and a non-negative number for calories.</span>';
+            }
+        });
+
+        // Clear Food Item Input Fields
+        clearFoodItemInputsBtn.addEventListener('click', () => {
+            clearFoodItemInputs();
+        });
+
+        // Calculate BMI
+        calculateBmiBtn.addEventListener('click', () => {
+            const record = getRecordForDate(currentDate);
+            const weight = parseFloat(weightInput.value); // in kg
+            const heightCm = parseFloat(heightInput.value); // in cm
+
+            if (!isNaN(weight) && weight > 0 && !isNaN(heightCm) && heightCm > 0) {
+                const heightM = heightCm / 100; // Convert cm to meters
+                const bmi = (weight / (heightM * heightM)).toFixed(2); // BMI formula, rounded to 2 decimal places
+                const bmiCategory = getBmiCategory(parseFloat(bmi)); // Get category from calculated BMI
+                record.bmi = { value: bmi, category: bmiCategory };
+                updateUIForCurrentDate();
+                saveData();
+                renderHistory();
+                renderChart();
+            } else {
+                adviceDisplay.innerHTML = '<span style="color: red;">Please enter valid positive numbers for weight and height.</span>';
+            }
+        });
+
+        // Quick Add Water Buttons
+        waterQuickAddBtns.forEach(button => {
+            button.addEventListener('click', (event) => {
+                const record = getRecordForDate(currentDate);
+                const amount = parseFloat(event.currentTarget.dataset.amount);
+                if (!isNaN(amount) && amount > 0) {
+                    record.water = parseFloat((record.water + amount).toFixed(2)); // Add and round
+                    updateUIForCurrentDate();
+                    saveData();
+                    renderHistory();
+                    renderChart();
+                }
+            });
+        });
+
+        // Get Personalized Advice from Gemini API
+        getAdviceBtn.addEventListener('click', async () => {
+            adviceDisplay.innerHTML = 'Generating advice...';
+            adviceSpinner.classList.add('active');
+
+            const record = getRecordForDate(currentDate);
+
+            const prompt = `Based on the following daily health data, provide a brief, encouraging, and actionable personalized health advice.
+            Today's Calories: ${record.calories} kcal
+            Last Recorded BMI: ${record.bmi.value} (${record.bmi.category})
+            Today's Water Intake: ${record.water} L
+
+            Consider the following general guidelines for context:
+            - Average adult calorie intake: 2000-2500 kcal/day (varies by individual)
+            - Healthy BMI range: 18.5 - 24.9
+            - Recommended daily water intake: 2-3 L (8-12 glasses)
+
+            If data is N/A or 0, suggest logging it. Keep the advice concise and positive.`;
+
+            // Gemini API call
+            let chatHistory = [];
+            chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+            const payload = { contents: chatHistory };
+            const apiKey = "";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    const text = result.candidates[0].content.parts[0].text;
+                    adviceDisplay.innerHTML = text;
+                } else {
+                    adviceDisplay.innerHTML = 'Could not get advice. Please try again.';
+                }
+            } catch (error) {
+                console.error('Error fetching advice:', error);
+                adviceDisplay.innerHTML = 'Error fetching advice. Please check your network connection.';
+            } finally {
+                adviceSpinner.classList.remove('active');
+            }
+        });
+
+        // Clear All Data
+        clearDataBtn.addEventListener('click', () => {
+            const confirmation = confirm("Are you sure you want to clear all your logged data? This action cannot be undone.");
+            if (confirmation) {
+                localStorage.clear();
+                dailyRecords = []; // Reset the records array
+                currentDate = new Date().toISOString().split('T')[0]; // Reset current date to today
+                logDateInput.value = currentDate; // Update date picker
+                updateUIForCurrentDate();
+                renderHistory();
+                renderChart();
+                clearFoodItemInputs();
+                adviceDisplay.innerHTML = 'All data cleared. Click "Get Advice" to receive personalized insights based on your logged data.';
+            }
+        });
+
+        // --- Initial Load ---
+        window.onload = loadData;
+    </script>
+</body>
+</html>
